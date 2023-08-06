@@ -4,7 +4,6 @@ import regex
 import json
 import time
 import logging
-import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -28,7 +27,7 @@ from agixtsdk import AGiXTSDK
 from Websearch import Websearch
 
 ApiClient = AGiXTSDK(
-    base_uri="http://localhost:7437", api_key=os.getenv("AGIXT_API_KEY")
+    base_uri="http://localhost:7437", api_key=os.getenv("AGIXT_API_KEY", None)
 )
 chain = Chain()
 cp = Prompts()
@@ -164,7 +163,7 @@ class Interactions:
         **kwargs,
     ):
         shots = int(shots)
-        disable_memory = True if str(disable_memory).lower() != "true" else False
+        disable_memory = True if str(disable_memory).lower() == "true" else False
         browse_links = True if str(browse_links).lower() == "true" else False
         if conversation_name != "":
             conversation_name = f"{self.agent_name} History"
@@ -187,19 +186,20 @@ class Interactions:
                         text_content, link_list = await self.memories.read_website(
                             url=link
                         )
-                        if link_list is not None and len(link_list) > 0:
-                            i = 0
-                            for sublink in link_list:
-                                if sublink[1] not in self.websearch.browsed_links:
-                                    logging.info(f"Browsing link: {sublink[1]}")
-                                    if i <= 10:
-                                        (
-                                            text_content,
-                                            link_list,
-                                        ) = await self.memories.read_website(
-                                            url=sublink[1]
-                                        )
-                                        i = i + 1
+                        if int(websearch_depth) > 0:
+                            if link_list is not None and len(link_list) > 0:
+                                i = 0
+                                for sublink in link_list:
+                                    if sublink[1] not in self.websearch.browsed_links:
+                                        logging.info(f"Browsing link: {sublink[1]}")
+                                        if i <= websearch_depth:
+                                            (
+                                                text_content,
+                                                link_list,
+                                            ) = await self.memories.read_website(
+                                                url=sublink[1]
+                                            )
+                                            i = i + 1
         if websearch:
             if user_input == "":
                 if "primary_objective" in kwargs and "task" in kwargs:
